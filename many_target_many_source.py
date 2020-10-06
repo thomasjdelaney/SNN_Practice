@@ -1,4 +1,5 @@
 import argparse
+import datetime as dt
 import pyNN.nest as pynn
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ from utilities import *
 
 parser = argparse.ArgumentParser(description='Many Poisson spike source inputs, excitatory and inhibitory, one target. With or without STDP.')
 parser.add_argument('-b', '--num_target', help='number of target cells.', default=1, type=int)
+parser.add_argument('-c', '--inhib_conn_type', help='type of inhibitory connection', default='ff', choices=['ff','lat'], type=str)
 parser.add_argument('-i', '--num_inhib', help='number of inhibitory cells.', default=1, type=int)
 parser.add_argument('-r', '--inhib_rates_lower', help='lower boundary of inhibitory rates (Hz).', default=8.0, type=float)
 parser.add_argument('-e', '--num_excit', help='number of excitatory cells.', default=1, type=int)
@@ -27,7 +29,7 @@ if not args.debug:
 
     # define inhibitory and excitatory populations
     inhib_rates, excit_rates = getRatesForInhibExcit(args.inhib_rates_lower, args.excit_rates_lower, args.num_inhib, args.num_excit)
-    inhib_source = pynn.Population(args.num_inhib, pynn.SpikeSourcePoisson(rate=inhib_rates), label="inhib_input")
+    inhib_source = pynn.Population(args.num_inhib, pynn.SpikeSourcePoisson(rate=inhib_rates), label="inhib_input") if args.inhib_conn_type == 'ff' else None
     excit_source = pynn.Population(args.num_excit, pynn.SpikeSourcePoisson(rate=excit_rates), label="excit_input")
 
     # define stdp rules, parameters could be messed around with here.
@@ -37,12 +39,17 @@ if not args.debug:
     synapse_to_use = stdp if args.stdp else pynn.StaticSynapse(weight=0.02)
 
     # connect inhibitory and excitatory sources to target. Could connect inhib to excit?
-    inhib_conn = pynn.Projection(inhib_source, target_pop, connector=pynn.AllToAllConnector(), synapse_type=synapse_to_use, receptor_type='inhibitory')
-    excit_conn = pynn.Projection(excit_source, target_pop, connector=pynn.AllToAllConnector(), synapse_type=synapse_to_use, receptor_type='excitatory')
+    if args.inhib_conn_type == 'ff':
+        inhib_conn = pynn.Projection(inhib_source, target_pop, connector=pynn.FixedProbabilityConnector(0.75), synapse_type=synapse_to_use, receptor_type='inhibitory')
+    elif args.inhib_conn_type == 'lat':
+        inhib_conn = pynn.Projection(target_pop, target_pop, connector=pynn.FixedProbabilityConnector(0.75), synapse_type=synapse_to_use, receptor_type='inhibitory')
+    else:
+        print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Unrecognised inhibatory connection type!')
+    excit_conn = pynn.Projection(excit_source, target_pop, connector=pynn.FixedProbabilityConnector(0.75), synapse_type=synapse_to_use, receptor_type='excitatory')
 
     # tell the sim what to record
     target_pop.record(['spikes', 'v', 'gsyn_exc', 'gsyn_inh']) if args.record_target_spikes else target_pop.record(['v', 'gsyn_exc', 'gsyn_inh'])
-    inhib_source.record('spikes')
+    inhib_source.record('spikes') if args.inhib_conn_type == 'ff' else None
     excit_source.record('spikes')
 
     # record the weights
@@ -50,6 +57,7 @@ if not args.debug:
     excit_weight_recorder = WeightRecorder(sampling_interval=1.0, projection=excit_conn)
 
     # run the simulation
+
     pynn.run(args.duration, callbacks=[inhib_weight_recorder, excit_weight_recorder])
     pynn.end()
 
@@ -58,17 +66,17 @@ if not args.debug:
     target_spikes = target_pop.get_data('spikes').segments[0].spiketrains if args.record_target_spikes else None
     target_pop_gsyn_exc = target_pop.get_data('gsyn_exc').segments[0].analogsignals[0]
     target_pop_gsyn_inh = target_pop.get_data('gsyn_inh').segments[0].analogsignals[0]
-    inhib_source_spiketrains = inhib_source.get_data('spikes').segments[0].spiketrains
+    inhib_source_spiketrains = inhib_source.get_data('spikes').segments[0].spiketrains if args.inhib_conn_type == 'ff' else []
     excit_source_spiketrains = excit_source.get_data('spikes').segments[0].spiketrains
 
     # do some plotting
     if args.make_plots:
         plotTargetVWithInhibExcitSpikes(target_pop_v, inhib_source_spiketrains, excit_source_spiketrains)
-        plotInhExcSynapticStrengths(target_pop_gsyn_exc, target_pop_gsyn_inh, args.duration)
-        plotWeightsOverTime(inhib_weight_recorder.get_weights(), 'Inhibitory weights')
-        plotWeightsOverTime(excit_weight_recorder.get_weights(), 'Excitatory weights')
+        #plotInhExcSynapticStrengths(target_pop_gsyn_exc, target_pop_gsyn_inh, args.duration)
+        #plotWeightsOverTime(inhib_weight_recorder.get_weights(), 'Inhibitory weights')
+        #plotWeightsOverTime(excit_weight_recorder.get_weights(), 'Excitatory weights')
+        plotConnectionWeights(inhib_conn.get('weight', format='array'), title='inhibitory connections')
+        plotConnectionWeights(excit_conn.get('weight', format='array'), title='excitatory connections')
         if args.record_target_spikes:
             plotTargetInhibExcitSpikes(target_spikes, inhib_source_spiketrains, excit_source_spiketrains, args.duration)
         plt.show(block=False)
-
-# TODO: function and options for plotting synapse strengths
