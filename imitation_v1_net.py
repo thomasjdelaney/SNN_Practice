@@ -9,6 +9,7 @@ import argparse, os, sys, shutil, h5py
 import pyNN.nest as pynn
 import numpy as np
 import matplotlib.pyplot as plt
+import datetime as dt
 from WeightRecorder import *
 from PlottingFunctions import *
 from utilities import *
@@ -37,80 +38,116 @@ pynn.setup(timestep=0.1, min_delay=2.0) # different
 proj_dir = os.path.join(os.environ['HOME'], 'SNN_practice')
 h5_dir = os.path.join(proj_dir, 'h5')
 
-def getOnOffSourceRates(num_source, on_bright_params=[20.0,1.0], on_dark_params=[10.0, 0.5], off_bright_params=[10.0, 0.5], off_dark_params=[20,1.0]):
+def getOnOffSourceRates(num_source, stim_type, on_bright_params=[20.0,1.0], on_dark_params=[10.0, 0.5], off_bright_params=[10.0, 0.5], off_dark_params=[20,1.0]):
     """
     Get rates for the on and off source populations. Need rates for both bright and dark stimuli. Param args are for gamma distributions.
     Arguments:  num_source, number of cells in the source populations.
+                stim_type, 'bright' or 'dark'
                 on_bright_params, parameters for a gamma distribution
+    Returns:    on and off rates, np arrays float
     """
-    on_bright_rates = np.random.gamma(on_bright_params[0], on_bright_params[1], size=num_source)
-    on_dark_rates = np.random.gamma(on_dark_params[0], on_dark_params[1], size=num_source)
-    off_bright_rates = np.random.gamma(off_bright_params[0], off_bright_params[1], size=num_source)
-    off_dark_rates = np.random.gamma(off_dark_params[0], off_dark_params[1], size=num_source)
-    return on_bright_rates, on_dark_rates, off_bright_rates, off_dark_rates
+    if stim_type == 'bright':
+        on_rates = np.random.gamma(on_bright_params[0], on_bright_params[1], size=num_source)
+        off_rates = np.random.gamma(off_bright_params[0], off_bright_params[1], size=num_source)
+    elif stim_type == 'dark':
+        on_rates = np.random.gamma(on_dark_params[0], on_dark_params[1], size=num_source)
+        off_rates = np.random.gamma(off_dark_params[0], off_dark_params[1], size=num_source)
+    else:
+        print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Unrecognised stim_type. Exiting')
+        error()
+    return on_rates, off_rates
 
-if not args.debug:
-    on_bright_rates, on_dark_rates, off_bright_rates, off_dark_rates = getOnOffSourceRates(args.num_source)
-    stdp_weight_distn = pynn.random.RandomDistribution('uniform',args.lat_conn_strength_params)
-    # DO BRIGHT FOR NOW
-    source_on_pop = pynn.Population(args.num_source, pynn.SpikeSourcePoisson(rate=on_bright_rates), label='source_on_pop')
-    source_off_pop = pynn.Population(args.num_source, pynn.SpikeSourcePoisson(rate=off_bright_rates), label='source_off_pop')
-    target_pop = pynn.Population(args.num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
-    # stdp
+def runSimGivenStim(stim_type, lat_conn_strength_params, num_source, num_target, duration, use_stdp, record_source_spikes):
+    """
+    For running the simulation and returning the required results.
+    Arguments:  stim_type, 'bright' or 'dark'
+                lat_conn_strength_params, continuous uniform distribution params
+                num_source, number of cells in the source layers
+                num_target, number of cells in the target layer
+                duration, float
+                use_stdp,
+                record_source_spikes,
+    """
+    on_rates, off_rates = getOnOffSourceRates(num_source, stim_type)
+    stdp_weight_distn = pynn.random.RandomDistribution('uniform',lat_conn_strength_params)
+    source_on_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(rate=on_rates), label='source_on_pop')
+    source_off_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(rate=off_rates), label='source_off_pop')
+    target_pop = pynn.Population(num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
     stdp = pynn.STDPMechanism(weight=stdp_weight_distn,
         timing_dependence=pynn.SpikePairRule(tau_plus=20.0, tau_minus=20.0, A_plus=0.01, A_minus=0.012),
         weight_dependence=pynn.AdditiveWeightDependence(w_min=0, w_max=0.1))
-    synapse_to_use = stdp if args.stdp else pynn.StaticSynapse(weight=0.02)
-    # feed forward connections
+    synapse_to_use = stdp if use_stdp else pynn.StaticSynapse(weight=0.02)
     ff_on_conn = pynn.Projection(source_on_pop, target_pop, connector=pynn.AllToAllConnector(), synapse_type=synapse_to_use, receptor_type='excitatory')
     ff_off_conn = pynn.Projection(source_off_pop, target_pop, connector=pynn.AllToAllConnector(), synapse_type=synapse_to_use, receptor_type='excitatory')
-    # lateral connections (STOP SELF CONNECTIONS)
-    lat_conn = pynn.Projection(target_pop, target_pop, connector=pynn.AllToAllConnector(), synapse_type=synapse_to_use, receptor_type='inhibitory')
-    # instruct the network what to record
+    lat_conn = pynn.Projection(target_pop, target_pop, connector=pynn.AllToAllConnector(allow_self_connections=False), synapse_type=synapse_to_use, receptor_type='inhibitory')
     target_pop.record(['spikes'])
-    if args.record_source_spikes:
-        source_on_pop.record('spikes')
-        source_off_pop.record('spikes')
-    # record the weights
+    [source_on_pop.record('spikes'), source_off_pop.record('spikes')] if args.record_source_spikes else None
     ff_on_weight_recorder = WeightRecorder(sampling_interval=1.0, projection=ff_on_conn)
     ff_off_weight_recorder = WeightRecorder(sampling_interval=1.0, projection=ff_off_conn)
     lat_weight_recorder = WeightRecorder(sampling_interval=1.0, projection=lat_conn)
-    # run the sims and collect the results (spikes, final weights)
-    # initialise arrays to collect results from each iteration
-    target_spikes_by_iter = [] # can't initialise this as spike time arrays are of different lengths
-    if args.record_source_spikes:
-        source_on_spikes_by_iter, source_off_spikes_by_iter = [], []
-    ff_on_weights_by_iter = np.zeros([args.num_source, args.num_target], dtype=float)
-    ff_off_weights_by_iter = np.zeros([args.num_source, args.num_target], dtype=float)
-    lat_weights_by_iter = np.zeros([args.num_target, args.num_target], dtype=float)
-
-    pynn.run(args.duration, callbacks=[ff_on_weight_recorder, ff_off_weight_recorder, lat_weight_recorder])
+    pynn.run(duration, callbacks=[ff_on_weight_recorder, ff_off_weight_recorder, lat_weight_recorder])
     pynn.end()
-
     target_spikes = target_pop.get_data('spikes').segments[0].spiketrains
-    if args.record_source_spikes:
+    if record_source_spikes:
         source_on_spikes = source_on_pop.get_data('spikes').segments[0].spiketrains
         source_off_spikes = source_off_pop.get_data('spikes').segments[0].spiketrains
     ff_on_weights = ff_on_conn.get('weight', format='array')
     ff_off_weights = ff_off_conn.get('weight', format='array')
     lat_weights = lat_conn.get('weight', format='array')
-
     ff_on_weights_over_time = ff_on_weight_recorder.get_weights()
     ff_off_weights_over_time = ff_off_weight_recorder.get_weights()
     lat_weights_over_time = lat_weight_recorder.get_weights()
-    # save the results somewhere (need to learn how to save a projection object.)
+    pynn.reset()
+    return target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time
 
-    # TODO need to save some info about the experiment itself. duration, num cells,
-    results_file_name = os.path.join(h5_dir, 'training_results.h5')
-    results_file = h5py.File(results_file_name, 'rw')
-    results_file.create_dataset('duration', data=args.duration)
-    results_file.create_dataset('num_source', data=args.num_source)
-    results_file.create_dataset('num_target', data.args.num_target)
-    stim_group = results_file.create_group(args.stim_type)
-    stim_group.create_dataset('target_spikes', data=target_spikes)
+def saveResults(stim_type, duration, num_source, num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time, file_path_name=None):
+    """
+    For saving down the results of a simulation. Used separately for on and off runs.
+    Arguments:  stim_type,
+                duration,
+                num_source,
+                num_target,
+                target_spikes,
+                ff_on_weights,
+                ff_off_weights,
+                lat_weights,
+                ff_on_weights_over_time,
+                ff_off_weights_over_time,
+                lat_weights_over_time,
+                file_name, default None, if given, assume that one run has happened and another is occurring.
+    Returns:    file_path_name, str, full file name including path.
+    """
+    if file_path_name == None:
+        file_path_name = os.path.join(h5_dir, 'training_results.h5')
+    file_exists = os.path.isfile(file_path_name)
+    results_file = h5py.File(file_path_name, 'a')
+    if file_exists:
+        has_duration = 'duration' in results_file.keys()
+        has_num_source = 'num_source' in results_file.keys()
+        has_num_target = 'num_target' in results_file.keys()
+    else:
+        has_duration, has_num_source, has_num_target = False, False, False
+    results_file.create_dataset('duration', data=args.duration) if not has_duration else None
+    results_file.create_dataset('num_source', data=args.num_source) if not has_num_source else None
+    results_file.create_dataset('num_target', data=args.num_target) if not has_num_target else None
+    stim_group = results_file.create_group(stim_type)
     stim_group.create_dataset('ff_on_weights', data=ff_on_weights)
     stim_group.create_dataset('ff_off_weights', data=ff_off_weights)
     stim_group.create_dataset('lat_weights', data=lat_weights)
     stim_group.create_dataset('ff_on_weights_over_time', data=ff_on_weights_over_time)
     stim_group.create_dataset('ff_off_weights_over_time', data=ff_off_weights_over_time)
     stim_group.create_dataset('lat_weights_over_time', data=lat_weights_over_time)
+    stim_group.create_dataset('weight_times', data=ff_on_weights_over_time.times)
+    target_spikes_group = stim_group.create_group('target_spikes')
+    for i,st in enumerate(target_spikes):
+        target_spikes_group.create_dataset(str(i), data=st.as_array())
+    results_file.close()
+    return file_path_name
+
+if not args.debug:
+    print(dt.datetime.now().isoformat() + ' INFO: Starting main function...')
+    target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time = runSimGivenStim('bright', args.lat_conn_strength_params, args.num_source, args.num_target, args.duration, args.use_stdp, args.record_source_spikes)
+    file_path_name = saveResults('bright', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time)
+    target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time = runSimGivenStim('dark', args.lat_conn_strength_params, args.num_source, args.num_target, args.duration, args.use_stdp, args.record_source_spikes)
+    file_path_name = saveResults('dark', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time)
+    print(dt.datetime.now().isoformat() + ' INFO: ' + file_path_name + ' saved.')
