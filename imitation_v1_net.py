@@ -15,17 +15,16 @@ from PlottingFunctions import *
 from utilities import *
 
 parser = argparse.ArgumentParser(description='Feed-forward Poisson spike input. Lateral inhibitory connections')
+parser.add_argument('-f', '--file_path_name', help='name of the file to save to.', default='training_results.h5', type=str)
 parser.add_argument('-b', '--num_target', help='number of target cells.', default=5, type=int)
-parser.add_argument('-f', '--num_source', help='number of source/feed-forward cells.', default=10, type=int)
+parser.add_argument('-n', '--num_source', help='number of source/feed-forward cells.', default=10, type=int)
 parser.add_argument('-p', '--source_rates_params', help='params for the gamma distribution.', default=[10,0.5], type=float, nargs=2)
 # parser.add_argument('-c', '--ff_conn_prob', help='feed-forward connection prob.', default=0.75, type=float)
 # parser.add_argument('-l', '--lat_conn_prob', help='lateral connection prob.', default=0.75, type=float)
 parser.add_argument('-d', '--duration', help='duration of simulation.', default=3000.0, type=float)
 parser.add_argument('-u', '--use_stdp', help='use STDP', default=False, action='store_true')
 parser.add_argument('-r', '--record_source_spikes', help='Record the source spikes', default=False, action='store_true')
-parser.add_argument('-t', '--stim_type', help='bright or dark', default='bright', choices=['bright', 'dark'])
 parser.add_argument('-s', '--numpy_seed', help='RNG seed', default=1798, type=int)
-parser.add_argument('-m', '--make_plots', help='make the plots, or not.', default=False, action='store_true')
 parser.add_argument('--lat_conn_strength_params', help='params for distribution of strengths of later connections', default=[0.015,0.025], type=float, nargs=2)
 parser.add_argument('--debug', help='enter debug mode', default=False, action='store_true')
 args = parser.parse_args()
@@ -37,25 +36,7 @@ pynn.setup(timestep=0.1, min_delay=2.0) # different
 
 proj_dir = os.path.join(os.environ['HOME'], 'SNN_practice')
 h5_dir = os.path.join(proj_dir, 'h5')
-
-def getOnOffSourceRates(num_source, stim_type, on_bright_params=[20.0,1.0], on_dark_params=[10.0, 0.5], off_bright_params=[10.0, 0.5], off_dark_params=[20,1.0]):
-    """
-    Get rates for the on and off source populations. Need rates for both bright and dark stimuli. Param args are for gamma distributions.
-    Arguments:  num_source, number of cells in the source populations.
-                stim_type, 'bright' or 'dark'
-                on_bright_params, parameters for a gamma distribution
-    Returns:    on and off rates, np arrays float
-    """
-    if stim_type == 'bright':
-        on_rates = np.random.gamma(on_bright_params[0], on_bright_params[1], size=num_source)
-        off_rates = np.random.gamma(off_bright_params[0], off_bright_params[1], size=num_source)
-    elif stim_type == 'dark':
-        on_rates = np.random.gamma(on_dark_params[0], on_dark_params[1], size=num_source)
-        off_rates = np.random.gamma(off_dark_params[0], off_dark_params[1], size=num_source)
-    else:
-        print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Unrecognised stim_type. Exiting')
-        error()
-    return on_rates, off_rates
+args.file_path_name = os.path.join(h5_dir, args.file_path_name)
 
 def runSimGivenStim(stim_type, lat_conn_strength_params, num_source, num_target, duration, use_stdp, record_source_spikes):
     """
@@ -68,7 +49,7 @@ def runSimGivenStim(stim_type, lat_conn_strength_params, num_source, num_target,
                 use_stdp,
                 record_source_spikes,
     """
-    on_rates, off_rates = getOnOffSourceRates(num_source, stim_type)
+    on_rates, off_rates = getOnOffSourceRates(num_source, stim_type) # this will have to take more arguments soon.
     stdp_weight_distn = pynn.random.RandomDistribution('uniform',lat_conn_strength_params)
     source_on_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(rate=on_rates), label='source_on_pop')
     source_off_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(rate=off_rates), label='source_off_pop')
@@ -100,7 +81,7 @@ def runSimGivenStim(stim_type, lat_conn_strength_params, num_source, num_target,
     pynn.reset()
     return target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time
 
-def saveResults(stim_type, duration, num_source, num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time, file_path_name=None):
+def saveTrainingResults(stim_type, duration, num_source, num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time, file_path_name):
     """
     For saving down the results of a simulation. Used separately for on and off runs.
     Arguments:  stim_type,
@@ -117,8 +98,6 @@ def saveResults(stim_type, duration, num_source, num_target, target_spikes, ff_o
                 file_name, default None, if given, assume that one run has happened and another is occurring.
     Returns:    file_path_name, str, full file name including path.
     """
-    if file_path_name == None:
-        file_path_name = os.path.join(h5_dir, 'training_results.h5')
     file_exists = os.path.isfile(file_path_name)
     results_file = h5py.File(file_path_name, 'a')
     if file_exists:
@@ -147,7 +126,7 @@ def saveResults(stim_type, duration, num_source, num_target, target_spikes, ff_o
 if not args.debug:
     print(dt.datetime.now().isoformat() + ' INFO: Starting main function...')
     target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time = runSimGivenStim('bright', args.lat_conn_strength_params, args.num_source, args.num_target, args.duration, args.use_stdp, args.record_source_spikes)
-    file_path_name = saveResults('bright', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time)
+    file_path_name = saveTrainingResults('bright', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time, args.file_path_name)
     target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time = runSimGivenStim('dark', args.lat_conn_strength_params, args.num_source, args.num_target, args.duration, args.use_stdp, args.record_source_spikes)
-    file_path_name = saveResults('dark', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time)
+    file_path_name = saveTrainingResults('dark', args.duration, args.num_source, args.num_target, target_spikes, ff_on_weights, ff_off_weights, lat_weights, ff_on_weights_over_time, ff_off_weights_over_time, lat_weights_over_time, args.file_path_name)
     print(dt.datetime.now().isoformat() + ' INFO: ' + file_path_name + ' saved.')
