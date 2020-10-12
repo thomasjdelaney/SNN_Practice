@@ -1,3 +1,16 @@
 ## keeping a record of command lines used to save h5 files.
 python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/divergent_params.h5 --num_target 5 --num_source 10 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798
-python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/divergent_params.h5 
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/divergent_params.h5
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/source_target_same_size.h5 --num_target 10 --num_source 10 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/source_target_same_size.h5
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.1 --lateral_connection_prob 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network.h5
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network.h5 --pres_duration 500 # perfect correlation between source, target, and stimulus here.
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.01 --lateral_connection_prob 0.01
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections.h5 --pres_duration 150 --num_pres_per_stim 20
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections_restricted_w.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.01 --lateral_connection_prob 0.01 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections_restricted_w.h5 --pres_duration 150 --num_pres_per_stim 20

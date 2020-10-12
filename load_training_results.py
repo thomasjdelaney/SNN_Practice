@@ -24,7 +24,7 @@ h5_dir = os.path.join(proj_dir, 'h5')
 
 pynn.setup(timestep=0.1, min_delay=2.0) # different
 
-def getPresentationRatesForCallback(num_source, num_pres_per_stim):
+def getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim):
     """
     For getting an iterator of rates to be used by the callback usied by the simulation.
     Arguments:  num_source, the number of cells in the source layers.
@@ -37,8 +37,8 @@ def getPresentationRatesForCallback(num_source, num_pres_per_stim):
     dark_on_rates, dark_off_rates = getOnOffSourceRates((num_source, num_pres_per_stim), 'dark')
     on_rates = np.hstack([dark_on_rates, bright_on_rates])
     off_rates = np.hstack([dark_off_rates, bright_off_rates])
-    random_inds = np.random.permutation(np.arange(200))
-    is_bright = random_inds > 99
+    random_inds = np.random.permutation(np.arange(num_stim * num_pres_per_stim))
+    is_bright = random_inds >= num_pres_per_stim
     random_on_rates = iter(on_rates[:,random_inds].T)
     random_off_rates = iter(off_rates[:, random_inds].T)
     return is_bright, random_on_rates, random_off_rates
@@ -56,7 +56,7 @@ def presentStimuli(pres_duration, num_pres_per_stim, num_source, num_target, bri
 
     source_on_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(), label='source_on_pop')
     source_off_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(), label='source_off_pop')
-    is_bright, random_on_rates, random_off_rates = getPresentationRatesForCallback(num_source, num_pres_per_stim)
+    is_bright, random_on_rates, random_off_rates = getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim)
 
     bright_target_pop = pynn.Population(num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
     dark_target_pop = pynn.Population(num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
