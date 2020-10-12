@@ -106,6 +106,34 @@ def binSpikeTimes(num_stim, pres_duration, num_pres_per_stim, is_bright, source_
         binned_dark_spikes += np.histogram(dark_st, bins=trial_borders)[0]
     return binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes
 
+def quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright):
+    """
+    For doing some quick analysis of the spike counts resulting from stimulus presentation.
+    Arguments:  binned_source_on_spikes,
+                binned_source_off_spikes,
+                binned_bright_spikes,
+                binned_dark_spikes
+                is_bright
+    Returns:    nothing
+    """
+    on_bright_mean_rate = binned_source_on_spikes[is_bright].mean()
+    on_dark_mean_rate = binned_source_on_spikes[np.invert(is_bright)].mean()
+    off_bright_mean_rate = binned_source_off_spikes[is_bright].mean()
+    off_dark_mean_rate = binned_source_off_spikes[np.invert(is_bright)].mean()
+    bright_bright_mean_rate = binned_bright_spikes[is_bright].mean()
+    bright_dark_mean_rate = binned_bright_spikes[np.invert(is_bright)].mean()
+    dark_bright_mean_rate = binned_dark_spikes[is_bright].mean()
+    dark_dark_mean_rate = binned_dark_spikes[np.invert(is_bright)].mean()
+    source_stim_agree_prop = np.sum(is_bright == (binned_source_on_spikes > binned_source_off_spikes))/binned_source_on_spikes.size
+    target_stim_agree_prop = np.sum(is_bright == (binned_bright_spikes > binned_dark_spikes))/binned_source_on_spikes.size
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Source on firing rate: ' + str(on_bright_mean_rate) + ' and ' + str(on_dark_mean_rate) + ' for bright and dark.')
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Source off firing rate: ' + str(off_bright_mean_rate) + ' and ' + str(off_dark_mean_rate) + ' for bright and dark.')
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target bright firing rate: ' + str(bright_bright_mean_rate) + ' and ' + str(bright_dark_mean_rate) + ' for bright and dark.')
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target dark firing rate: ' + str(dark_bright_mean_rate) + ' and ' + str(dark_dark_mean_rate) + ' for bright and dark.')
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Source layers agreement with stimulus: ' + str(source_stim_agree_prop))
+    print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target layers agreement with stimulus: ' + str(target_stim_agree_prop))
+    return None
+
 h5_file = h5py.File(args.file_path_name, 'r')
 duration = h5_file.get('duration')[()]
 num_source = h5_file.get('num_source')[()]
@@ -118,8 +146,29 @@ bright_lat_weights = bright.get('lat_weights')[()]
 dark_on_weights = dark.get('ff_on_weights')[()]
 dark_off_weights = dark.get('ff_off_weights')[()]
 dark_lat_weights = dark.get('lat_weights')[()]
+weight_times = bright.get('weight_times')[()]
+bright_ff_on_time = bright.get('ff_on_weights_over_time')[()]
+bright_ff_off_time = bright.get('ff_off_weights_over_time')[()]
+bright_lat_time = bright.get('lat_weights_over_time')[()]
+dark_ff_on_time = dark.get('ff_on_weights_over_time')[()]
+dark_ff_off_time = dark.get('ff_off_weights_over_time')[()]
+dark_lat_time = dark.get('lat_weights_over_time')[()]
 
 if not args.debug:
     num_stim = 2
     is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights)
     binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes = binSpikeTimes(num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes)
+    quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
+    rasterMultiPopulations([source_on_spikes, source_off_spikes, bright_spikes, dark_spikes], ['blue', 'darkblue', 'green', 'darkorange'], num_stim, args.pres_duration, args.num_pres_per_stim, is_bright)
+    plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True)
+    plotWeightSpreadOverTime(bright_ff_off_time, title='bright off', colour='magenta', mean_colour='darkviolet', times=weight_times, include_mean=True)
+    plotWeightSpreadOverTime(bright_lat_time, title='bright lat', colour='green', mean_colour='darkgreen', times=weight_times, include_mean=True)
+    plotWeightSpreadOverTime(dark_ff_on_time, title='dark on', colour='cyan', mean_colour='teal', times=weight_times, include_mean=True)
+    plotWeightSpreadOverTime(dark_ff_off_time, title='dark off', colour='gold', mean_colour='darkgoldenrod', times=weight_times, include_mean=True)
+    plotWeightSpreadOverTime(dark_lat_time, title='dark lat', colour='orangered', mean_colour='red', times=weight_times, include_mean=True)
+    plotConnectionWeights(bright_on_weights, title='bright on')
+    plotConnectionWeights(dark_on_weights, title='dark on')
+    plotConnectionWeights(bright_off_weights, title='bright off')
+    plotConnectionWeights(dark_off_weights, title='dark off')
+    plotConnectionWeights(bright_lat_weights, title='bright lat')
+    plotConnectionWeights(dark_lat_weights, title='dark lat')

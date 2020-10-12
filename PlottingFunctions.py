@@ -86,6 +86,53 @@ def plotTargetInhibExcitSpikes(target_spikes, inhib_source_spiketrains, excit_so
     [ax.spines[l].set_visible(False) for l in ['top','right']]
     plt.tight_layout()
 
+def plotBrightDarkTimeBins(ax, num_stim, pres_duration, num_pres_per_stim, is_bright):
+    """
+    For shading in the dark presentations. Input axis required
+    Arguments:  ax, the plt axis that we're already plotting on
+                num_stim, number of stimuli
+                pres_duration, duration of a given presentation in classification
+                num_pres_per_stim,
+                is_bright,
+    Returns:    nothing
+    """
+    pres_starts = np.arange(0,num_stim*pres_duration*num_pres_per_stim, pres_duration)
+    ylims = ax.get_ylim()
+    dark_intervals = np.vstack([pres_starts, pres_starts + pres_duration]).T[np.invert(is_bright)]
+    for di in dark_intervals:
+        ax.fill_between(di, y1=ylims[0], y2=ylims[1], color='black', alpha=0.15)
+    ax.set_ylim(ylims)
+
+def rasterMultiPopulations(spike_train_collections, colours, num_stim, pres_duration, num_pres_per_stim, is_bright):
+    """
+    For raster plotting spike trains from different populations.
+    Arguments:  spike_train_collections, list of lists of spike trains
+                colours, list of colours, should be same length as spike_train_collections
+                num_stim, number of stimuli
+                pres_duration, duration of a given presentation in classification
+                num_pres_per_stim,
+                is_bright
+    Returns:    nothing
+    """
+    duration = num_stim*pres_duration*num_pres_per_stim
+    all_trains = []
+    all_colours = []
+    for i,spike_train_col in enumerate(spike_train_collections):
+        all_trains = all_trains + spike_train_col
+        all_colours = all_colours + [colours[i]]*len(spike_train_col)
+    total_num_cells = len(all_trains)
+    fig,ax = plt.subplots(nrows=1,ncols=1, figsize=(5,4))
+    ax.eventplot(all_trains, colors=all_colours)
+    plotBrightDarkTimeBins(ax, num_stim, pres_duration, num_pres_per_stim, is_bright)
+    ax.set_xlabel('Time (ms)', fontsize='x-large')
+    ax.set_ylabel('Cells', fontsize='x-large')
+    ax.set_ylim(-0.5, -0.5 + total_num_cells)
+    ax.set_xlim(0, duration)
+    ax.tick_params(axis='x', labelsize='large')
+    ax.set_yticks([])
+    [ax.spines[l].set_visible(False) for l in ['top','right']]
+    plt.tight_layout()
+
 def plotInhExcSynapticStrengths(target_pop_gsyn_exc, target_pop_gsyn_inh, duration):
     """
     For plotting the excitatory/inhibitory synaptic strengths over time. (I believe these are aggregates.)
@@ -122,7 +169,7 @@ def plotInhExcSynapticStrengths(target_pop_gsyn_exc, target_pop_gsyn_inh, durati
     plt.tight_layout()
     plt.subplots_adjust(hspace=0.075)
 
-def plotWeightsOverTime(weights_time_series, title=''):
+def plotWeightsOverTime(weights_time_series, title='', times=None):
     """
     For plotting the change in weights over time.
     Arguments:  weights_time_series, numpy array (num time points, num weights)
@@ -131,10 +178,14 @@ def plotWeightsOverTime(weights_time_series, title=''):
     num_weights = weights_time_series.shape[1]
     plotting_weights = (weights_time_series/weights_time_series.mean(axis=0)) + np.arange(num_weights)
     fig,ax = plt.subplots(nrows=1,ncols=1, figsize=(5,4))
-    plt.plot(weights_time_series.times, plotting_weights)
+    if np.all(times == None):
+        plt.plot(weights_time_series.times, plotting_weights)
+        ax.set_xlim(weights_time_series.times[0], weights_time_series.times[-1])
+    else:
+        plt.plot(times, weights_time_series, plotting_weights)
+        ax.set_xlim(times[0], times[-1])
     ax.set_xlabel('Time (ms)', fontsize='x-large')
     ax.set_ylabel('Weights', fontsize='x-large')
-    ax.set_xlim(weights_time_series.times[0], weights_time_series.times[-1])
     ax.tick_params(axis='x', labelsize='large')
     ax.set_yticks([])
     [ax.spines[l].set_visible(False) for l in ['top','right']]
@@ -150,5 +201,28 @@ def plotConnectionWeights(weights, title=''):
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5,4))
     im = ax.imshow(weights, cmap=cm.get_cmap('Blues'))
     cbar = ax.figure.colorbar(im, ax=ax)
+    ax.set_title(title, fontsize='x-large') if title != '' else None
+    plt.tight_layout()
+
+def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', mean_colour='blue', times=None, include_mean=True):
+    """
+    For plotting the evolution of the weights over time on top of each other.
+    Arguments:  weights_time_series,
+                title,
+                colour, the colour for the individual weights
+                mean_colour, the colour for the mean, ideally a similar colour to 'colour' but darker
+                times, x-axis (weights_time_series may sometimes have a 'time' attribute)
+                include_mean, flag to include the mean of the weights
+    Returns:    nothing
+    """
+    fig,ax = plt.subplots(nrows=1,ncols=1, figsize=(5,4))
+    times = weights_time_series.times if np.all(times == None) else times
+    ax.plot(times, weights_time_series, color=colour)
+    ax.plot(times, weights_time_series.mean(axis=1), color=mean_colour) if include_mean else None
+    ax.set_xlim(times[0], times[-1])
+    ax.set_xlabel('Time (ms)', fontsize='x-large')
+    ax.set_ylabel('Weights', fontsize='x-large')
+    ax.tick_params(axis='both', labelsize='large')
+    [ax.spines[l].set_visible(False) for l in ['top','right']]
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()

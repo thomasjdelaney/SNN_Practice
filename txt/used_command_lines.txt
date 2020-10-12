@@ -1,0 +1,3 @@
+## keeping a record of command lines used to save h5 files.
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/divergent_params.h5 --num_target 5 --num_source 10 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/divergent_params.h5 
