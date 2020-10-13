@@ -50,15 +50,15 @@ def getConnectorType(conn_type, ff_prob=None, lat_prob=None):
     Returns:    ff_conn, lat_conn
     """
     if conn_type == 'all_to_all':
-        ff_conn = pynn.AllToAllConnector()
-        lat_conn = pynn.AllToAllConnector(allow_self_connections=False)
+        ff_conn = pynn.AllToAllConnector(rng=pynn.random.NumpyRNG(seed=1798))
+        lat_conn = pynn.AllToAllConnector(allow_self_connections=False, rng=pynn.random.NumpyRNG(seed=1916))
     elif conn_type == 'fixed_prob':
         if (ff_prob == None) or (lat_prob == None):
             print(dt.datetime.now().isoformat() + ' ERROR: ' + 'One of the connections probabilities is "None".')
             sys.exit(2)
         else:
-            ff_conn = pynn.FixedProbabilityConnector(ff_prob)
-            lat_conn = pynn.FixedProbabilityConnector(lat_prob, allow_self_connections=False)
+            ff_conn = pynn.FixedProbabilityConnector(ff_prob, rng=pynn.random.NumpyRNG(seed=1798))
+            lat_conn = pynn.FixedProbabilityConnector(lat_prob, allow_self_connections=False, rng=pynn.random.NumpyRNG(seed=1916))
     else:
         print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Unrecognised connection type.')
         sys.exit(2)

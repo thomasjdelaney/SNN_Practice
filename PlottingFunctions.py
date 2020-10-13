@@ -204,7 +204,7 @@ def plotConnectionWeights(weights, title=''):
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()
 
-def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', mean_colour='blue', times=None, include_mean=True):
+def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', mean_colour='blue', times=None, include_mean=True, file_name=None):
     """
     For plotting the evolution of the weights over time on top of each other.
     Arguments:  weights_time_series,
@@ -213,6 +213,7 @@ def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', 
                 mean_colour, the colour for the mean, ideally a similar colour to 'colour' but darker
                 times, x-axis (weights_time_series may sometimes have a 'time' attribute)
                 include_mean, flag to include the mean of the weights
+                file_name, if not none, save the figure here
     Returns:    nothing
     """
     fig,ax = plt.subplots(nrows=1,ncols=1, figsize=(5,4))
@@ -226,3 +227,4 @@ def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', 
     [ax.spines[l].set_visible(False) for l in ['top','right']]
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()
+    plt.savefig(file_name) if file_name != None else None

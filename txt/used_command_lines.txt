@@ -14,3 +14,26 @@ python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h
 
 python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections_restricted_w.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.01 --lateral_connection_prob 0.01 --w_max 0.1
 python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_fewer_connections_restricted_w.h5 --pres_duration 150 --num_pres_per_stim 20
+
+##### The following gave reasonable firing rates in the target layers and good performance.
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/smaller_network_fewer_connections_restricted_w.h5 --num_target 25 --num_source 25 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.01 --lateral_connection_prob 0.01 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/smaller_network_fewer_connections_restricted_w.h5 --pres_duration 100 --num_pres_per_stim 20
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_very_few_connections_restricted_w.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 10000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.005 --lateral_connection_prob 0.005 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_very_few_connections_restricted_w.h5 --pres_duration 150 --num_pres_per_stim 20
+
+#### Still too much activity
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_very_few_connections_restricted_w_long_duration.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.005 --lateral_connection_prob 0.005 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_very_few_connections_restricted_w_long_duration.h5 --pres_duration 150 --num_pres_per_stim 20
+
+### Still too much activity, go back to smaller networks.
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/big_network_thousandth_connections_restricted_w_long_duration.h5 --num_target 100 --num_source 100 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.001 --lateral_connection_prob 0.001 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/big_network_thousandth_connections_restricted_w_long_duration.h5 --pres_duration 150 --num_pres_per_stim 20
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty.h5 --num_target 30 --num_source 30 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.01 --lateral_connection_prob 0.01 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty.h5 --pres_duration 150 --num_pres_per_stim 100
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob.h5 --num_target 30 --num_source 30 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.1 --lateral_connection_prob 0.1 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob.h5 --pres_duration 150 --num_pres_per_stim 100
+
+python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_2.h5 --num_target 30 --num_source 30 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.1 --lateral_connection_prob 0.2 --w_max 0.1

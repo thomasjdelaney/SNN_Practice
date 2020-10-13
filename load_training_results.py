@@ -13,6 +13,7 @@ parser.add_argument('-f', '--file_path_name', help='The h5 file for loading.', d
 parser.add_argument('-p', '--pres_duration', help='the duration of the presentation of each stimulus.', default=100, type=int)
 parser.add_argument('-n', '--num_pres_per_stim', help='number of presentations of each stimulus.', default=100, type=int)
 parser.add_argument('-s', '--numpy_seed', help='For seeding random numbers', default=1798, type=int)
+parser.add_argument('-a', '--lat_weight_adjustment', help='multiplicative coefficient applied to mean lat weight, to make additional factor for those weights', default=0, type=float)
 parser.add_argument('--debug', help='enter debug mode.', default=False, action='store_true')
 args = parser.parse_args()
 
@@ -21,6 +22,7 @@ np.set_printoptions(linewidth=shutil.get_terminal_size().columns)
 
 proj_dir = os.path.join(os.environ['HOME'], 'SNN_practice')
 h5_dir = os.path.join(proj_dir, 'h5')
+image_dir = os.path.join(proj_dir, 'images')
 
 pynn.setup(timestep=0.1, min_delay=2.0) # different
 
@@ -134,6 +136,22 @@ def quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, b
     print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target layers agreement with stimulus: ' + str(target_stim_agree_prop))
     return None
 
+def getAdjustedLateralWeights(lat_weight_adjustment, bright_lat_weights, dark_lat_weights):
+    """
+    For adjusting the lateral weights. Only adjusts non-nan weights.
+    Arguments:  lat_weight_adjustment, the coefficient, can be positive or negative, applied to the mean weights
+                bright_lat_weights,
+                dark_lat_weights
+    Returns:    adjusted_bright_lat_weights, adjusted_dark_lat_weights
+    """
+    if args.lat_weight_adjustment != 0:
+        adjusted_dark_lat_weights = dark_lat_weights + args.lat_weight_adjustment * np.nanmean(dark_lat_weights)
+        adjusted_bright_lat_weights = bright_lat_weights + args.lat_weight_adjustment * np.nanmean(bright_lat_weights)
+    else:
+        adjusted_dark_lat_weights = dark_lat_weights
+        adjusted_bright_lat_weights = bright_lat_weights
+    return adjusted_bright_lat_weights, adjusted_dark_lat_weights
+
 h5_file = h5py.File(args.file_path_name, 'r')
 duration = h5_file.get('duration')[()]
 num_source = h5_file.get('num_source')[()]
@@ -156,11 +174,13 @@ dark_lat_time = dark.get('lat_weights_over_time')[()]
 
 if not args.debug:
     num_stim = 2
-    is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights)
+    adjusted_bright_lat_weights, adjusted_dark_lat_weights = getAdjustedLateralWeights(args.lat_weight_adjustment, bright_lat_weights, dark_lat_weights)
+    is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, adjusted_bright_lat_weights, dark_on_weights, dark_off_weights, adjusted_dark_lat_weights)
     binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes = binSpikeTimes(num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes)
     quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
     rasterMultiPopulations([source_on_spikes, source_off_spikes, bright_spikes, dark_spikes], ['blue', 'darkblue', 'green', 'darkorange'], num_stim, args.pres_duration, args.num_pres_per_stim, is_bright)
-    plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True)
+    file_name = os.path.join(image_dir, 'bright_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_ff_over_time.png'))
+    plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True, file_name=file_name)
     plotWeightSpreadOverTime(bright_ff_off_time, title='bright off', colour='magenta', mean_colour='darkviolet', times=weight_times, include_mean=True)
     plotWeightSpreadOverTime(bright_lat_time, title='bright lat', colour='green', mean_colour='darkgreen', times=weight_times, include_mean=True)
     plotWeightSpreadOverTime(dark_ff_on_time, title='dark on', colour='cyan', mean_colour='teal', times=weight_times, include_mean=True)
