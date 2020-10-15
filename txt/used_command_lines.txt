@@ -37,3 +37,4 @@ python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/thirty
 python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob.h5 --pres_duration 150 --num_pres_per_stim 100
 
 python3 imitation_v1_net.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_2.h5 --num_target 30 --num_source 30 --source_rates_params 200 0.1 10 0.1 10 0.1 200 0.1 --duration 50000 --use_stdp --record_source_spikes --numpy_seed 1798 --conn_type fixed_prob --feed_forward_connection_prob 0.1 --lateral_connection_prob 0.2 --w_max 0.1
+python3 -i load_training_results.py --file_path_name /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_2.h5 --pres_duration 150 --num_pres_per_stim 100

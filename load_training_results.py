@@ -3,6 +3,7 @@ import pyNN.nest as pynn
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime as dt
+import pandas as pd
 from PlottingFunctions import *
 from PoissonWeightVariation import *
 from utilities import *
@@ -18,13 +19,74 @@ parser.add_argument('--debug', help='enter debug mode.', default=False, action='
 args = parser.parse_args()
 
 np.random.seed(args.numpy_seed)
+pd.set_option('max_rows', 30)
 np.set_printoptions(linewidth=shutil.get_terminal_size().columns)
 
 proj_dir = os.path.join(os.environ['HOME'], 'SNN_practice')
 h5_dir = os.path.join(proj_dir, 'h5')
 image_dir = os.path.join(proj_dir, 'images')
+csv_dir = os.path.join(proj_dir, 'csv')
 
 pynn.setup(timestep=0.1, min_delay=2.0) # different
+
+def extractInfoFromH5File(file_path_name):
+    """
+    For extracting all the available info from a h5 file.
+    Arguments:  file_path_name, str, the path and file_name
+    Returns:    duration, the duration of training
+                num_source, number of cells in source layers
+                num_target, number of cells in target layer
+                bright_on_weights, the trained weights of the synapses from the on source layer to the bright target layer
+                bright_off_weights, the trained weights of the synapses from the off source layer to the bright target layer
+                bright_lat_weights, the trained weights of the lateral connections within the bright target layer
+                dark_on_weights, the trained weights of the synapses from the on source layer to the dark target layer
+                dark_off_weights, the trained weights of the synapses from the off source layer to the dark target layer
+                dark_lat_weights, the trained weights of the synapses from the off source layer to the dark target layer
+                weight_times, the times at which the weights were sampled during training
+                bright_ff_on_time, the evolution of the bright on weights over time
+                bright_ff_off_time, the evolution of the bright off weights over time
+                bright_lat_time, the evolution of the bright_lat_weights over time
+                dark_ff_on_time, the evolution of the dark on weights over time
+                dark_ff_off_time, the evolution of the dark off weights over time
+                dark_lat_time, the evolution of the dark_lat_weights over time
+    """
+    h5_file = h5py.File(args.file_path_name, 'r')
+    duration = h5_file.get('duration')[()]
+    num_source = h5_file.get('num_source')[()]
+    num_target = h5_file.get('num_target')[()]
+    bright = h5_file.get('bright')
+    dark = h5_file.get('dark')
+    bright_on_weights = bright.get('ff_on_weights')[()]
+    bright_off_weights = bright.get('ff_off_weights')[()]
+    bright_lat_weights = bright.get('lat_weights')[()]
+    dark_on_weights = dark.get('ff_on_weights')[()]
+    dark_off_weights = dark.get('ff_off_weights')[()]
+    dark_lat_weights = dark.get('lat_weights')[()]
+    weight_times = bright.get('weight_times')[()]
+    bright_ff_on_time = bright.get('ff_on_weights_over_time')[()]
+    bright_ff_off_time = bright.get('ff_off_weights_over_time')[()]
+    bright_lat_time = bright.get('lat_weights_over_time')[()]
+    dark_ff_on_time = dark.get('ff_on_weights_over_time')[()]
+    dark_ff_off_time = dark.get('ff_off_weights_over_time')[()]
+    dark_lat_time = dark.get('lat_weights_over_time')[()]
+    return duration, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights, weight_times, bright_ff_on_time, bright_ff_off_time, bright_lat_time, dark_ff_on_time, dark_ff_off_time, dark_lat_time
+
+def getAdjustedLateralWeights(lat_weight_adjustment, bright_lat_weights, dark_lat_weights):
+    """
+    For adjusting the lateral weights. Only adjusts non-nan weights.
+    Arguments:  lat_weight_adjustment, the coefficient, can be positive or negative, applied to the mean weights
+                bright_lat_weights,
+                dark_lat_weights
+    Returns:    adjusted_bright_lat_weights, adjusted_dark_lat_weights
+    """
+    if args.lat_weight_adjustment != 0:
+        adjusted_dark_lat_weights = dark_lat_weights + args.lat_weight_adjustment * np.nanmean(dark_lat_weights)
+        adjusted_bright_lat_weights = bright_lat_weights + args.lat_weight_adjustment * np.nanmean(bright_lat_weights)
+    else:
+        adjusted_dark_lat_weights = dark_lat_weights
+        adjusted_bright_lat_weights = bright_lat_weights
+    return adjusted_bright_lat_weights, adjusted_dark_lat_weights
+
 
 def getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim):
     """
@@ -134,50 +196,50 @@ def quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, b
     print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target dark firing rate: ' + str(dark_bright_mean_rate) + ' and ' + str(dark_dark_mean_rate) + ' for bright and dark.')
     print(dt.datetime.now().isoformat() + ' INFO: ' + 'Source layers agreement with stimulus: ' + str(source_stim_agree_prop))
     print(dt.datetime.now().isoformat() + ' INFO: ' + 'Target layers agreement with stimulus: ' + str(target_stim_agree_prop))
-    return None
+    return on_bright_mean_rate, on_dark_mean_rate, off_bright_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop
 
-def getAdjustedLateralWeights(lat_weight_adjustment, bright_lat_weights, dark_lat_weights):
+def recordRunResults(file_path_name, duration, num_source, num_target, lat_weight_adjustment, pres_duration, num_pres_per_stim, on_bright_mean_rate, off_bright_mean_rate, on_dark_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop):
     """
-    For adjusting the lateral weights. Only adjusts non-nan weights.
-    Arguments:  lat_weight_adjustment, the coefficient, can be positive or negative, applied to the mean weights
-                bright_lat_weights,
-                dark_lat_weights
-    Returns:    adjusted_bright_lat_weights, adjusted_dark_lat_weights
+    Append the results of the classification to a csv file, or create the csv file if it doesn't exist.
+    Arguments:  file_path_name,
+                duration,
+                num_source,
+                num_target,
+                lat_weight_adjustment,
+                pres_duration,
+                num_pres_per_stim,
+                on_bright_mean_rate,
+                off_bright_mean_rate,
+                on_dark_mean_rate,
+                off_dark_mean_rate,
+                bright_bright_mean_rate,
+                bright_dark_mean_rate,
+                dark_bright_mean_rate,
+                dark_dark_mean_rate,
+                source_stim_agree_prop,
+                target_stim_agree_prop,
+    Returns     csv_file_name
     """
-    if args.lat_weight_adjustment != 0:
-        adjusted_dark_lat_weights = dark_lat_weights + args.lat_weight_adjustment * np.nanmean(dark_lat_weights)
-        adjusted_bright_lat_weights = bright_lat_weights + args.lat_weight_adjustment * np.nanmean(bright_lat_weights)
+    csv_file_name = os.path.join(csv_dir, 'light_dark_class_results.csv')
+    file_exists = os.path.isfile(csv_file_name)
+    record_to_add_dict = {'file_path_name':file_path_name, 'duration':duration, 'num_source':num_source, 'num_target':num_target, 'lat_weight_adjustment':lat_weight_adjustment, 'pres_duration':pres_duration, 'num_pres_per_stim':num_pres_per_stim, 'on_bright_mean_rate':on_bright_mean_rate, 'off_bright_mean_rate':off_bright_mean_rate, 'on_dark_mean_rate':on_dark_mean_rate, 'off_dark_mean_rate':off_dark_mean_rate, 'bright_bright_mean_rate':bright_bright_mean_rate, 'bright_dark_mean_rate':bright_dark_mean_rate, 'dark_bright_mean_rate':dark_bright_mean_rate, 'dark_dark_mean_rate':dark_dark_mean_rate, 'source_stim_agree_prop':source_stim_agree_prop, 'target_stim_agree_prop':target_stim_agree_prop}
+    if file_exists:
+        loaded_res_frame = pd.read_csv(csv_file_name)
+        loaded_res_frame.append(pd.DataFrame.from_records([record_to_add_dict]), ignore_index=True)
+        loaded_res_frame.to_csv(csv_file_name, index_label='row_num')
     else:
-        adjusted_dark_lat_weights = dark_lat_weights
-        adjusted_bright_lat_weights = bright_lat_weights
-    return adjusted_bright_lat_weights, adjusted_dark_lat_weights
-
-h5_file = h5py.File(args.file_path_name, 'r')
-duration = h5_file.get('duration')[()]
-num_source = h5_file.get('num_source')[()]
-num_target = h5_file.get('num_target')[()]
-bright = h5_file.get('bright')
-dark = h5_file.get('dark')
-bright_on_weights = bright.get('ff_on_weights')[()]
-bright_off_weights = bright.get('ff_off_weights')[()]
-bright_lat_weights = bright.get('lat_weights')[()]
-dark_on_weights = dark.get('ff_on_weights')[()]
-dark_off_weights = dark.get('ff_off_weights')[()]
-dark_lat_weights = dark.get('lat_weights')[()]
-weight_times = bright.get('weight_times')[()]
-bright_ff_on_time = bright.get('ff_on_weights_over_time')[()]
-bright_ff_off_time = bright.get('ff_off_weights_over_time')[()]
-bright_lat_time = bright.get('lat_weights_over_time')[()]
-dark_ff_on_time = dark.get('ff_on_weights_over_time')[()]
-dark_ff_off_time = dark.get('ff_off_weights_over_time')[()]
-dark_lat_time = dark.get('lat_weights_over_time')[()]
+        res_frame = pd.DataFrame.from_records([record_to_add_dict])
+        res_frame.to_csv(csv_file_name, index_label='row_num')
+    return csv_file_name
 
 if not args.debug:
+    duration, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights, weight_times, bright_ff_on_time, bright_ff_off_time, bright_lat_time, dark_ff_on_time, dark_ff_off_time, dark_lat_time = extractInfoFromH5File(args.file_path_name)
     num_stim = 2
     adjusted_bright_lat_weights, adjusted_dark_lat_weights = getAdjustedLateralWeights(args.lat_weight_adjustment, bright_lat_weights, dark_lat_weights)
     is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, adjusted_bright_lat_weights, dark_on_weights, dark_off_weights, adjusted_dark_lat_weights)
     binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes = binSpikeTimes(num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes)
-    quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
+    on_bright_mean_rate, on_dark_mean_rate, off_bright_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop = quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
+    csv_file_name = recordRunResults(args.file_path_name, duration, num_source, num_target, args.lat_weight_adjustment, args.pres_duration, args.num_pres_per_stim, on_bright_mean_rate, off_bright_mean_rate, on_dark_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop)
     rasterMultiPopulations([source_on_spikes, source_off_spikes, bright_spikes, dark_spikes], ['blue', 'darkblue', 'green', 'darkorange'], num_stim, args.pres_duration, args.num_pres_per_stim, is_bright)
     file_name = os.path.join(image_dir, 'bright_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_ff_over_time.png'))
     plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True, file_name=file_name)
