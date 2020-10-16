@@ -225,8 +225,9 @@ def recordRunResults(file_path_name, duration, num_source, num_target, lat_weigh
     record_to_add_dict = {'file_path_name':file_path_name, 'duration':duration, 'num_source':num_source, 'num_target':num_target, 'lat_weight_adjustment':lat_weight_adjustment, 'pres_duration':pres_duration, 'num_pres_per_stim':num_pres_per_stim, 'on_bright_mean_rate':on_bright_mean_rate, 'off_bright_mean_rate':off_bright_mean_rate, 'on_dark_mean_rate':on_dark_mean_rate, 'off_dark_mean_rate':off_dark_mean_rate, 'bright_bright_mean_rate':bright_bright_mean_rate, 'bright_dark_mean_rate':bright_dark_mean_rate, 'dark_bright_mean_rate':dark_bright_mean_rate, 'dark_dark_mean_rate':dark_dark_mean_rate, 'source_stim_agree_prop':source_stim_agree_prop, 'target_stim_agree_prop':target_stim_agree_prop}
     if file_exists:
         loaded_res_frame = pd.read_csv(csv_file_name)
-        loaded_res_frame.append(pd.DataFrame.from_records([record_to_add_dict]), ignore_index=True)
-        loaded_res_frame.to_csv(csv_file_name, index_label='row_num')
+        record_to_add_dict['row_num'] = loaded_res_frame.row_num.max()+1
+        new_res_frame = loaded_res_frame.append(pd.DataFrame.from_records([record_to_add_dict]), ignore_index=True)
+        new_res_frame.to_csv(csv_file_name, index_label='row_num')
     else:
         res_frame = pd.DataFrame.from_records([record_to_add_dict])
         res_frame.to_csv(csv_file_name, index_label='row_num')
