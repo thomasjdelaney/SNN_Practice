@@ -15,6 +15,7 @@ parser.add_argument('-p', '--pres_duration', help='the duration of the presentat
 parser.add_argument('-n', '--num_pres_per_stim', help='number of presentations of each stimulus.', default=100, type=int)
 parser.add_argument('-s', '--numpy_seed', help='For seeding random numbers', default=1798, type=int)
 parser.add_argument('-a', '--lat_weight_adjustment', help='multiplicative coefficient applied to mean lat weight, to make additional factor for those weights', default=0, type=float)
+parser.add_argument('-m', '--make_plots', help='show, save, or skip', default='skip', choices=['save', 'show', 'skip'])
 parser.add_argument('--debug', help='enter debug mode.', default=False, action='store_true')
 args = parser.parse_args()
 
@@ -226,12 +227,42 @@ def recordRunResults(file_path_name, duration, num_source, num_target, lat_weigh
     if file_exists:
         loaded_res_frame = pd.read_csv(csv_file_name)
         record_to_add_dict['row_num'] = loaded_res_frame.row_num.max()+1
-        new_res_frame = loaded_res_frame.append(pd.DataFrame.from_records([record_to_add_dict]), ignore_index=True)
-        new_res_frame.to_csv(csv_file_name, index_label='row_num')
+        new_res_frame = loaded_res_frame.append(pd.DataFrame.from_records([record_to_add_dict]), ignore_index=True, sort=False)
+        new_res_frame.to_csv(csv_file_name, index=False)
     else:
+        record_to_add_dict['row_num'] = 0
         res_frame = pd.DataFrame.from_records([record_to_add_dict])
-        res_frame.to_csv(csv_file_name, index_label='row_num')
+        res_frame.to_csv(csv_file_name, index=False)
     return csv_file_name
+
+def getFigureFileNames(make_plots):
+    """
+    For getting the file name for each of the figures, or return None depending on the make_plots flag.
+    Arguments:  make_plots, str, ['save', 'show']
+    Returns:    file names, str, or None
+    """
+    if make_plots == 'show':
+        file_names = [None]*13
+    raster_file_name = os.path.join(image_dir, 'rasters', os.path.basename(args.file_path_name).replace('.h5','_raster.png'))
+    bright_on_ff_time_file_name = os.path.join(image_dir, 'bright_on_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_bright_on_ff_over_time.png'))
+    bright_off_ff_time_file_name = os.path.join(image_dir, 'bright_off_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_bright_off_ff_over_time.png'))
+    bright_lat_time_file_name = os.path.join(image_dir, 'bright_lat_over_time', os.path.basename(args.file_path_name).replace('.h5','_bright_lat_over_time.png'))
+    dark_on_ff_time_file_name = os.path.join(image_dir, 'dark_on_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_dark_on_ff_over_time.png'))
+    dark_off_ff_time_file_name = os.path.join(image_dir, 'dark_off_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_dark_off_ff_over_time.png'))
+    dark_lat_time_file_name = os.path.join(image_dir, 'dark_lat_over_time', os.path.basename(args.file_path_name).replace('.h5','_dark_lat_over_time.png'))
+    bright_on_ff_file_name = os.path.join(image_dir, 'bright_on_ff', os.path.basename(args.file_path_name).replace('.h5','_bright_on_ff.png'))
+    bright_off_ff_file_name = os.path.join(image_dir, 'bright_off_ff', os.path.basename(args.file_path_name).replace('.h5','_bright_off_ff.png'))
+    bright_lat_file_name = os.path.join(image_dir, 'bright_lat', os.path.basename(args.file_path_name).replace('.h5','_bright_lat.png'))
+    dark_on_ff_file_name = os.path.join(image_dir, 'dark_on_ff', os.path.basename(args.file_path_name).replace('.h5','_dark_on_ff.png'))
+    dark_off_ff_file_name = os.path.join(image_dir, 'dark_off_ff', os.path.basename(args.file_path_name).replace('.h5','_dark_off_ff.png'))
+    dark_lat_file_name = os.path.join(image_dir, 'dark_lat', os.path.basename(args.file_path_name).replace('.h5','_dark_lat.png'))
+    file_names = [raster_file_name, bright_on_ff_time_file_name, bright_off_ff_time_file_name, bright_lat_time_file_name, dark_on_ff_time_file_name, dark_off_ff_time_file_name, dark_lat_time_file_name, bright_on_ff_file_name, bright_off_ff_file_name, bright_lat_file_name, dark_on_ff_file_name, dark_off_ff_file_name, dark_lat_file_name]
+    for file_name in file_names:
+        dir_name = os.path.dirname(file_name)
+        dirname_exists = os.path.isdir(dir_name)
+        if not dirname_exists:
+            os.makedirs(dir_name)
+    return file_names
 
 if not args.debug:
     duration, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights, weight_times, bright_ff_on_time, bright_ff_off_time, bright_lat_time, dark_ff_on_time, dark_ff_off_time, dark_lat_time = extractInfoFromH5File(args.file_path_name)
@@ -241,17 +272,19 @@ if not args.debug:
     binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes = binSpikeTimes(num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes)
     on_bright_mean_rate, on_dark_mean_rate, off_bright_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop = quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
     csv_file_name = recordRunResults(args.file_path_name, duration, num_source, num_target, args.lat_weight_adjustment, args.pres_duration, args.num_pres_per_stim, on_bright_mean_rate, off_bright_mean_rate, on_dark_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop)
-    rasterMultiPopulations([source_on_spikes, source_off_spikes, bright_spikes, dark_spikes], ['blue', 'darkblue', 'green', 'darkorange'], num_stim, args.pres_duration, args.num_pres_per_stim, is_bright)
-    file_name = os.path.join(image_dir, 'bright_ff_over_time', os.path.basename(args.file_path_name).replace('.h5','_ff_over_time.png'))
-    plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True, file_name=file_name)
-    plotWeightSpreadOverTime(bright_ff_off_time, title='bright off', colour='magenta', mean_colour='darkviolet', times=weight_times, include_mean=True)
-    plotWeightSpreadOverTime(bright_lat_time, title='bright lat', colour='green', mean_colour='darkgreen', times=weight_times, include_mean=True)
-    plotWeightSpreadOverTime(dark_ff_on_time, title='dark on', colour='cyan', mean_colour='teal', times=weight_times, include_mean=True)
-    plotWeightSpreadOverTime(dark_ff_off_time, title='dark off', colour='gold', mean_colour='darkgoldenrod', times=weight_times, include_mean=True)
-    plotWeightSpreadOverTime(dark_lat_time, title='dark lat', colour='orangered', mean_colour='red', times=weight_times, include_mean=True)
-    plotConnectionWeights(bright_on_weights, title='bright on')
-    plotConnectionWeights(dark_on_weights, title='dark on')
-    plotConnectionWeights(bright_off_weights, title='bright off')
-    plotConnectionWeights(dark_off_weights, title='dark off')
-    plotConnectionWeights(bright_lat_weights, title='bright lat')
-    plotConnectionWeights(dark_lat_weights, title='dark lat')
+    if args.make_plots != 'skip':
+        raster_file_name, bright_on_ff_time_file_name, bright_off_ff_time_file_name, bright_lat_time_file_name, dark_on_ff_time_file_name, dark_off_ff_time_file_name, dark_lat_time_file_name, bright_on_ff_file_name, bright_off_ff_file_name, bright_lat_file_name, dark_on_ff_file_name, dark_off_ff_file_name, dark_lat_file_name = getFigureFileNames(args.make_plots)
+
+        rasterMultiPopulations([source_on_spikes, source_off_spikes, bright_spikes, dark_spikes], ['blue', 'darkblue', 'green', 'darkorange'], num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, file_name=raster_file_name)
+        plotWeightSpreadOverTime(bright_ff_on_time, title='bright on', colour='lightblue', mean_colour='blue', times=weight_times, include_mean=True, file_name=bright_on_ff_time_file_name)
+        plotWeightSpreadOverTime(bright_ff_off_time, title='bright off', colour='magenta', mean_colour='darkviolet', times=weight_times, include_mean=True, file_name=bright_off_ff_time_file_name)
+        plotWeightSpreadOverTime(bright_lat_time, title='bright lat', colour='green', mean_colour='darkgreen', times=weight_times, include_mean=True, file_name=bright_lat_time_file_name)
+        plotWeightSpreadOverTime(dark_ff_on_time, title='dark on', colour='cyan', mean_colour='teal', times=weight_times, include_mean=True, file_name=dark_on_ff_file_name)
+        plotWeightSpreadOverTime(dark_ff_off_time, title='dark off', colour='gold', mean_colour='darkgoldenrod', times=weight_times, include_mean=True, file_name=dark_off_ff_file_name)
+        plotWeightSpreadOverTime(dark_lat_time, title='dark lat', colour='orangered', mean_colour='red', times=weight_times, include_mean=True, file_name=dark_lat_time_file_name)
+        plotConnectionWeights(bright_on_weights, title='bright on', file_name=bright_on_ff_file_name)
+        plotConnectionWeights(dark_on_weights, title='dark on', file_name=bright_off_ff_file_name)
+        plotConnectionWeights(bright_off_weights, title='bright off', file_name=dark_off_ff_file_name)
+        plotConnectionWeights(dark_off_weights, title='dark off', file_name=dark_on_ff_file_name)
+        plotConnectionWeights(bright_lat_weights, title='bright lat', file_name=bright_lat_file_name)
+        plotConnectionWeights(dark_lat_weights, title='dark lat', file_name=dark_lat_file_name)

@@ -103,7 +103,7 @@ def plotBrightDarkTimeBins(ax, num_stim, pres_duration, num_pres_per_stim, is_br
         ax.fill_between(di, y1=ylims[0], y2=ylims[1], color='black', alpha=0.15)
     ax.set_ylim(ylims)
 
-def rasterMultiPopulations(spike_train_collections, colours, num_stim, pres_duration, num_pres_per_stim, is_bright):
+def rasterMultiPopulations(spike_train_collections, colours, num_stim, pres_duration, num_pres_per_stim, is_bright, file_name=None):
     """
     For raster plotting spike trains from different populations.
     Arguments:  spike_train_collections, list of lists of spike trains
@@ -111,7 +111,8 @@ def rasterMultiPopulations(spike_train_collections, colours, num_stim, pres_dura
                 num_stim, number of stimuli
                 pres_duration, duration of a given presentation in classification
                 num_pres_per_stim,
-                is_bright
+                is_bright,
+                file_name
     Returns:    nothing
     """
     duration = num_stim*pres_duration*num_pres_per_stim
@@ -132,6 +133,7 @@ def rasterMultiPopulations(spike_train_collections, colours, num_stim, pres_dura
     ax.set_yticks([])
     [ax.spines[l].set_visible(False) for l in ['top','right']]
     plt.tight_layout()
+    plt.savefig(file_name) if file_name != None else None
 
 def plotInhExcSynapticStrengths(target_pop_gsyn_exc, target_pop_gsyn_inh, duration):
     """
@@ -192,7 +194,7 @@ def plotWeightsOverTime(weights_time_series, title='', times=None):
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()
 
-def plotConnectionWeights(weights, title=''):
+def plotConnectionWeights(weights, title='', file_name=None):
     """
     For plotting a matrix of lateral or feed-forward weights.
     Arguments:  weights, the weight matrix
@@ -203,6 +205,7 @@ def plotConnectionWeights(weights, title=''):
     cbar = ax.figure.colorbar(im, ax=ax)
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()
+    plt.savefig(file_name) if file_name != None else None
 
 def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', mean_colour='blue', times=None, include_mean=True, file_name=None):
     """
