@@ -19,7 +19,7 @@ parser.add_argument('-f', '--file_path_name', help='name of the file to save to.
 parser.add_argument('-b', '--num_target', help='number of target cells.', default=5, type=int)
 parser.add_argument('-n', '--num_source', help='number of source/feed-forward cells.', default=10, type=int)
 parser.add_argument('-p', '--source_rates_params', help='params for the gamma distribution.', default=[20.0,1.0, 10.0,0.5, 10.0,0.5, 20.0,1.0], type=float, nargs=8)
-parser.add_argument('-c', '--conn_type', help='connection type, [all_to_all, fixed_prob]', default='all_to_all', type=str, choices=['fixed_prob', 'all_to_all'])
+parser.add_argument('-c', '--conn_type', help='connection type, [all_to_all, fixed_prob, one_of_each]', default='all_to_all', type=str, choices=['fixed_prob', 'all_to_all', 'one_of_each'])
 parser.add_argument('-d', '--duration', help='duration of simulation.', default=3000.0, type=float)
 parser.add_argument('-u', '--use_stdp', help='use STDP', default=False, action='store_true')
 parser.add_argument('-r', '--record_source_spikes', help='Record the source spikes', default=False, action='store_true')
@@ -44,14 +44,14 @@ args.source_rates_params = np.array(args.source_rates_params).reshape(4,2)
 def getConnectorType(conn_type, ff_prob=None, lat_prob=None):
     """
     For getting the feed-forward and lateral connection types.
-    Arguments:  conn_type, str, choices = ['all_to_all', 'fixed_prob']
+    Arguments:  conn_type, str, choices = ['all_to_all', 'fixed_prob', 'one_of_each']
                 ff_prob, float, probability of connection for feed-forward
                 lat_prob, float, probability of connection for lateral
     Returns:    ff_conn, lat_conn
     """
     if conn_type == 'all_to_all':
-        ff_conn = pynn.AllToAllConnector(rng=pynn.random.NumpyRNG(seed=1798))
-        lat_conn = pynn.AllToAllConnector(allow_self_connections=False, rng=pynn.random.NumpyRNG(seed=1916))
+        ff_conn = pynn.AllToAllConnector()
+        lat_conn = pynn.AllToAllConnector(allow_self_connections=False)
     elif conn_type == 'fixed_prob':
         if (ff_prob == None) or (lat_prob == None):
             print(dt.datetime.now().isoformat() + ' ERROR: ' + 'One of the connections probabilities is "None".')
@@ -59,6 +59,13 @@ def getConnectorType(conn_type, ff_prob=None, lat_prob=None):
         else:
             ff_conn = pynn.FixedProbabilityConnector(ff_prob, rng=pynn.random.NumpyRNG(seed=1798))
             lat_conn = pynn.FixedProbabilityConnector(lat_prob, allow_self_connections=False, rng=pynn.random.NumpyRNG(seed=1916))
+    elif conn_type == 'one_of_each':
+        if ff_prob == None:
+            print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Feed forwards connections probabilities is "None".')
+            sys.exit(2)
+        else:
+            ff_conn = pynn.FixedProbabilityConnector(ff_prob, rng=pynn.random.NumpyRNG(seed=1798))
+            lat_conn = pynn.AllToAllConnector(allow_self_connections=False)
     else:
         print(dt.datetime.now().isoformat() + ' ERROR: ' + 'Unrecognised connection type.')
         sys.exit(2)
