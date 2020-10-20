@@ -231,3 +231,19 @@ def plotWeightSpreadOverTime(weights_time_series, title='', colour='lightblue', 
     ax.set_title(title, fontsize='x-large') if title != '' else None
     plt.tight_layout()
     plt.savefig(file_name) if file_name != None else None
+
+def plotColumnsFromResults(results_frame, col1, col2, x_lims, y_lims, var_label, x_label, y_label, chance=None):
+    """
+    For plotting something from the results dataframe
+    """
+    fig,ax = plt.subplots(nrows=1,ncols=1, figsize=(5,4))
+    ax.plot(results_frame[col1], results_frame[col2], label=var_label, color='orange')
+    ax.hlines(xmin=-5,xmax=5,y=0.5,color='blue',label='chance', linestyle='--') if chance != None else None
+    ax.set_xlim(x_lims)
+    ax.set_ylim(y_lims)
+    [ax.spines[l].set_visible(False) for l in ['top','right']]
+    ax.set_xlabel(x_label, fontsize='x-large')
+    ax.set_ylabel(y_label, fontsize='x-large')
+    ax.tick_params(axis='both', labelsize='large')
+    plt.legend(fontsize='large')
+    plt.tight_layout()

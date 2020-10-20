@@ -16,7 +16,7 @@ do
     /usr/bin/python3 $proj_dir/load_training_results.py --file_path_name $h5_dir/thirty_for_thirty_higher_conn_prob_1_"$i".h5 --pres_duration 100 --num_pres_per_stim 100
 done
 
-for i in {-5..5}
+for i in {-5..10}
 do
     echo `date +%Y-%m-%dT%H:%M:%S` INFO: Starting "$i" lat weight adjustment classification...
     /usr/bin/python3 $proj_dir/load_training_results.py --file_path_name $h5_dir/thirty_for_thirty_higher_conn_prob_1_1.h5 --pres_duration 100 --num_pres_per_stim 100 --lat_weight_adjustment $i

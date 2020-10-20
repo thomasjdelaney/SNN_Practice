@@ -16,6 +16,7 @@ parser.add_argument('-n', '--num_pres_per_stim', help='number of presentations o
 parser.add_argument('-s', '--numpy_seed', help='For seeding random numbers', default=1798, type=int)
 parser.add_argument('-a', '--lat_weight_adjustment', help='multiplicative coefficient applied to mean lat weight, to make additional factor for those weights', default=0, type=float)
 parser.add_argument('-m', '--make_plots', help='show, save, or skip', default='skip', choices=['save', 'show', 'skip'])
+parser.add_argument('-r', '--is_repeated', help='flag for repeated "on" then "off" stimulus, not random.', default=False, action='store_true')
 parser.add_argument('--debug', help='enter debug mode.', default=False, action='store_true')
 args = parser.parse_args()
 
@@ -89,11 +90,13 @@ def getAdjustedLateralWeights(lat_weight_adjustment, bright_lat_weights, dark_la
     return adjusted_bright_lat_weights, adjusted_dark_lat_weights
 
 
-def getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim):
+def getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim, is_repeated=False):
     """
     For getting an iterator of rates to be used by the callback usied by the simulation.
-    Arguments:  num_source, the number of cells in the source layers.
+    Arguments:  num_stim, the number of different stimuli
+                num_source, the number of cells in the source layers.
                 num_pres_per_stim, the number of presentations per stimulus
+                is_repeated, if true, stimulus is 'on', 'off', 'on', 'off'
     Returns:    is_bright, boolean array, 0 indicates dark, 1 indicates bright
                 random on rates, iterator, num_source x num_pres_per_stim x num_stim
                 random off rates, iterator, num_source x num_pres_per_stim x num_stim
@@ -102,13 +105,13 @@ def getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim):
     dark_on_rates, dark_off_rates = getOnOffSourceRates((num_source, num_pres_per_stim), 'dark')
     on_rates = np.hstack([dark_on_rates, bright_on_rates])
     off_rates = np.hstack([dark_off_rates, bright_off_rates])
-    random_inds = np.random.permutation(np.arange(num_stim * num_pres_per_stim))
+    random_inds = np.hstack(list(zip(np.arange(0,100),np.arange(100,200)))) if is_repeated else np.random.permutation(np.arange(num_stim * num_pres_per_stim))
     is_bright = random_inds >= num_pres_per_stim
     random_on_rates = iter(on_rates[:,random_inds].T)
     random_off_rates = iter(off_rates[:, random_inds].T)
     return is_bright, random_on_rates, random_off_rates
 
-def presentStimuli(pres_duration, num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights):
+def presentStimuli(pres_duration, num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights, is_repeated=False):
     """
     For presenting a stimulus to the target network. Callback is used to switch between presentation rates.
     Arguments:  num_source
@@ -121,7 +124,7 @@ def presentStimuli(pres_duration, num_pres_per_stim, num_source, num_target, bri
 
     source_on_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(), label='source_on_pop')
     source_off_pop = pynn.Population(num_source, pynn.SpikeSourcePoisson(), label='source_off_pop')
-    is_bright, random_on_rates, random_off_rates = getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim)
+    is_bright, random_on_rates, random_off_rates = getPresentationRatesForCallback(num_stim, num_source, num_pres_per_stim, is_repeated=is_repeated)
 
     bright_target_pop = pynn.Population(num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
     dark_target_pop = pynn.Population(num_target, pynn.IF_cond_exp, {'i_offset':0.11, 'tau_refrac':3.0, 'v_thresh':-51.0}, label='target_pop')
@@ -268,7 +271,7 @@ if not args.debug:
     duration, num_source, num_target, bright_on_weights, bright_off_weights, bright_lat_weights, dark_on_weights, dark_off_weights, dark_lat_weights, weight_times, bright_ff_on_time, bright_ff_off_time, bright_lat_time, dark_ff_on_time, dark_ff_off_time, dark_lat_time = extractInfoFromH5File(args.file_path_name)
     num_stim = 2
     adjusted_bright_lat_weights, adjusted_dark_lat_weights = getAdjustedLateralWeights(args.lat_weight_adjustment, bright_lat_weights, dark_lat_weights)
-    is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, adjusted_bright_lat_weights, dark_on_weights, dark_off_weights, adjusted_dark_lat_weights)
+    is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes = presentStimuli(args.pres_duration, args.num_pres_per_stim, num_source, num_target, bright_on_weights, bright_off_weights, adjusted_bright_lat_weights, dark_on_weights, dark_off_weights, adjusted_dark_lat_weights, is_repeated=args.is_repeated)
     binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes = binSpikeTimes(num_stim, args.pres_duration, args.num_pres_per_stim, is_bright, source_on_spikes, source_off_spikes, bright_spikes, dark_spikes)
     on_bright_mean_rate, on_dark_mean_rate, off_bright_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop = quickSpikeCountAnalysis(binned_source_on_spikes, binned_source_off_spikes, binned_bright_spikes, binned_dark_spikes, is_bright)
     csv_file_name = recordRunResults(args.file_path_name, duration, num_source, num_target, args.lat_weight_adjustment, args.pres_duration, args.num_pres_per_stim, on_bright_mean_rate, off_bright_mean_rate, on_dark_mean_rate, off_dark_mean_rate, bright_bright_mean_rate, bright_dark_mean_rate, dark_bright_mean_rate, dark_dark_mean_rate, source_stim_agree_prop, target_stim_agree_prop)

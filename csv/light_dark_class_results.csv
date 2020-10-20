@@ -20,3 +20,8 @@ file_path_name,duration,num_source,num_target,lat_weight_adjustment,pres_duratio
 /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,3.0,100,100,35.64,20.73,20.38,36.69,84.15,55.42,52.92,88.43,0.74,0.71,18
 /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,4.0,100,100,35.64,20.73,20.38,36.69,82.46,54.73,52.0,85.71,0.74,0.695,19
 /home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,5.0,100,100,35.64,20.73,20.38,36.69,80.94,54.1,51.03,83.14,0.74,0.695,20
+/home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,6.0,100,100,35.64,20.73,20.38,36.69,79.31,53.24,49.8,81.16,0.74,0.695,21
+/home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,7.0,100,100,35.64,20.73,20.38,36.69,77.96,52.54,48.83,79.05,0.74,0.7,22
+/home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,8.0,100,100,35.64,20.73,20.38,36.69,76.45,51.66,47.87,76.96,0.74,0.7,23
+/home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,9.0,100,100,35.64,20.73,20.38,36.69,74.99,50.99,46.98,75.2,0.74,0.7,24
+/home/thomas/SNN_practice/h5/thirty_for_thirty_higher_conn_prob_1_1.h5,100000.0,30,30,10.0,100,100,35.64,20.73,20.38,36.69,73.56,50.26,46.18,73.49,0.74,0.69,25
